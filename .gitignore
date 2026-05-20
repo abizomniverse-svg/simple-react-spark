@@ -12,3 +12,6 @@ scratch/
 *.pfx
 *.key
 *.crt
+nginx/
+ssl/
+logs/
