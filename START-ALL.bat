@@ -89,15 +89,15 @@ echo  ============================================
 echo.
 echo   Access from this PC:
 echo     Frontend:  https://achme.com
-echo     Frontend:  https://192.168.0.149
+echo     Frontend:  https://192.168.0.122
 echo     API:       https://achme.com/api/*
 echo.
 echo   Access from other devices on LAN:
-echo     1. Set DNS on device to: 192.168.0.149
+echo     1. Set DNS on device to: 192.168.0.122
 echo     2. Open: https://achme.com
 echo.
 echo     OR access directly via IP:
-echo     https://192.168.0.149
+echo     https://192.168.0.122
 echo.
 echo   Admin Login:
 echo     Email:    Kk@achmecommunication.com

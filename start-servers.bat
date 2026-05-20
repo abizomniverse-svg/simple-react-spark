@@ -24,7 +24,7 @@ echo  [SUCCESS] ACHME SERVER IS ONLINE AND LIVE!
 echo  ============================================================
 echo.
 echo  [+] Local Domain:   https://achme.com
-echo  [+] LAN Access:     https://192.168.0.149
+echo  [+] LAN Access:     https://192.168.0.122
 echo  [+] Backend API:    https://achme.com/api/*
 echo  [+] Database Port:  3306 (Active)
 echo.

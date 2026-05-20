@@ -17,7 +17,7 @@ echo     ACHME ENTERPRISE PRIVATE CLOUD SERVER
 echo     =========================================
 echo     Your PC is now a professional company server
 echo     Local Domain:  https://achme.com
-echo     LAN Access:    https://192.168.0.149
+echo     LAN Access:    https://192.168.0.122
 echo.
 echo  ================================================================
 echo.
@@ -51,7 +51,7 @@ echo  [SUCCESS] SERVER IS LIVE
 echo  ================================================================
 echo.
 echo   Local Access:  https://achme.com
-echo   LAN Access:    https://192.168.0.149
+echo   LAN Access:    https://192.168.0.122
 echo   Backend API:   https://achme.com/api/*
 echo.
 echo   Open browser and navigate to https://achme.com

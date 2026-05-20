@@ -3,8 +3,7 @@ const http = require('http');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-// const API_BASE = 'https://127.0.0.1';
-const API_IP = 'https://192.168.0.149';
+const API_BASE = 'https://192.168.0.122';
 const API_DOMAIN = 'https://achme.com';
 
 function request(url, method = 'GET', body = null, token = null) {
