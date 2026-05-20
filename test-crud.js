@@ -3,15 +3,17 @@ const http = require('http');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const API_BASE = 'https://192.168.0.122';
+const API_BASE = 'http://192.168.0.122';
 const API_DOMAIN = 'https://achme.com';
 
 function request(url, method = 'GET', body = null, token = null) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
+    const isHttps = parsed.protocol === 'https:';
+    const lib = isHttps ? https : http;
     const options = {
       hostname: parsed.hostname,
-      port: parsed.port || 443,
+      port: parsed.port || (isHttps ? 443 : 80),
       path: parsed.pathname + parsed.search,
       method,
       headers: {
@@ -22,7 +24,7 @@ function request(url, method = 'GET', body = null, token = null) {
     if (token) options.headers.Authorization = `Bearer ${token}`;
     if (body) options.headers['Content-Length'] = Buffer.byteLength(JSON.stringify(body));
 
-    const req = https.request(options, (res) => {
+    const req = lib.request(options, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {

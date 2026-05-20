@@ -88,16 +88,21 @@ echo   ALL SERVICES ARE LIVE!
 echo  ============================================
 echo.
 echo   Access from this PC:
+echo     Frontend:  http://192.168.0.122
 echo     Frontend:  https://achme.com
-echo     Frontend:  https://192.168.0.122
-echo     API:       https://achme.com/api/*
+echo     API:       http://192.168.0.122/api/*
 echo.
 echo   Access from other devices on LAN:
-echo     1. Set DNS on device to: 192.168.0.122
-echo     2. Open: https://achme.com
+echo     Option 1 (No SSL warning):
+echo       Open: http://192.168.0.122
 echo.
-echo     OR access directly via IP:
-echo     https://192.168.0.122
+echo     Option 2 (With DNS):
+echo       1. Set DNS on device to: 192.168.0.122
+echo       2. Open: https://achme.com
+echo.
+echo     Option 3 (Direct IP with SSL warning):
+echo       Open: https://192.168.0.122
+echo       (Click Advanced -> Proceed to continue)
 echo.
 echo   Admin Login:
 echo     Email:    Kk@achmecommunication.com
