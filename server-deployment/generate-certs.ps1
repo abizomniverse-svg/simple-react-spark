@@ -104,11 +104,28 @@ if ($OpenSslPath) {
         Write-Output "[OK] Private key extracted: $KeyPath"
         Remove-Item -Path $PfxPath -Force
     } else {
-        Write-Output "[WARN] OpenSSL extraction failed. PFX saved at: $PfxPath"
+        Write-Output "[WARN] OpenSSL extraction failed. Falling back to PowerShell export..."
     }
-} else {
-    Write-Output "[WARN] OpenSSL not found. PFX saved at: $PfxPath"
-    Write-Output "[INFO] Install Git for Windows to auto-extract .key file"
+}
+
+if (-not (Test-Path $KeyPath)) {
+    Write-Output "[INFO] Using PowerShell to export private key (no OpenSSL needed)..."
+    try {
+        $certBytes = $DomainCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pkcs12, $PfxPassword)
+        [System.IO.File]::WriteAllBytes($PfxPath, $certBytes)
+
+        $pfx = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+        $pfx.Import($PfxPath, $PfxPassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+        $privateKey = $pfx.PrivateKey
+        $keyBytes = $privateKey.ExportRSAPrivateKey()
+        $keyPem = "-----BEGIN RSA PRIVATE KEY-----`r`n" + [System.Convert]::ToBase64String($keyBytes, [System.Base64FormattingOptions]::InsertLineBreaks) + "`r`n-----END RSA PRIVATE KEY-----"
+        $keyPem | Out-File -FilePath $KeyPath -Encoding ascii -Force
+        Write-Output "[OK] Private key exported via PowerShell: $KeyPath"
+        Remove-Item -Path $PfxPath -Force -ErrorAction SilentlyContinue
+    } catch {
+        Write-Output "[WARN] Could not export private key: $_"
+        Write-Output "[INFO] PFX saved at: $PfxPath - use OpenSSL to extract .key manually"
+    }
 }
 
 Write-Output "[OK] SSL certificates generated successfully!"

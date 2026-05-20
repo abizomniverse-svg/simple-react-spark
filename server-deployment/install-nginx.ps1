@@ -52,6 +52,6 @@ if ($extractedDir) {
 
 Remove-Item -Path $NginxZip -Force -ErrorAction SilentlyContinue
 
-$nginxVersion = & (Join-Path $NginxDir "nginx.exe") -v 2>&1
-Write-Output "[OK] Nginx installed: $nginxVersion"
+$nginxVersion = & (Join-Path $NginxDir "nginx.exe") -v 2>&1 | Out-String
+Write-Output "[OK] Nginx installed"
 Write-Output "[INFO] Config file: $ProjectRoot\server-deployment\nginx.conf"

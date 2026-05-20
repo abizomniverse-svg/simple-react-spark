@@ -247,7 +247,7 @@ if not exist "%SSL_DIR%\achme.crt" (
 :: ============================================================
 echo.
 echo  [10/10] Updating CORS configuration...
-powershell -Command "(Get-Content '%SERVER_DIR%\ecosystem.config.js') -replace 'ALLOWED_ORIGIN.*', 'ALLOWED_ORIGIN: ''http://localhost:5173,https://achme.com,https://localhost,https://127.0.0.1,http://achme.com,http://127.0.0.1,http://%LAN_IP%,https://%LAN_IP%''' | Set-Content '%SERVER_DIR%\ecosystem.config.js'"
+powershell -Command "$content = Get-Content '%SERVER_DIR%\ecosystem.config.js' -Raw; $content = $content -replace 'ALLOWED_ORIGIN: ''[^'']*''', 'ALLOWED_ORIGIN: ''http://localhost:5173,https://achme.com,https://localhost,https://127.0.0.1,http://achme.com,http://127.0.0.1,http://%LAN_IP%,https://%LAN_IP%'''; $content | Set-Content '%SERVER_DIR%\ecosystem.config.js' -NoNewline"
 echo  [OK] CORS updated with LAN IP: %LAN_IP%
 
 :: ============================================================
