@@ -20,7 +20,7 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 5000,
-      ALLOWED_ORIGIN: 'http://localhost:5173',
+      ALLOWED_ORIGIN: 'http://localhost:5173,https://achme.com,https://localhost,https://127.0.0.1,http://achme.com,http://127.0.0.1,http://192.168.1.110,https://192.168.1.110',
       DEFAULT_TEST_PASSWORD: 'Test@12345',
 
       DB_HOST: '127.0.0.1',

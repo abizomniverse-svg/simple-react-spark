@@ -1,165 +1,215 @@
-# Achme Communication - Server Manual Guide
+# Achme Communication - Server Guide
 
-## Project Root
+## Quick Start
+
+**Double-click `START.bat`** → Everything auto-installs, auto-configures, auto-starts.
+
+The script will auto-request Administrator privileges.
+
+---
+
+## Architecture
+
 ```
-E:\OBSIDIAN\simple-react-spark
+┌──────────────────────────────────────────────────────────────┐
+│                    YOUR WINDOWS PC = SERVER                   │
+│                                                              │
+│  Employee Device (WiFi/Ethernet)                             │
+│       ↓                                                      │
+│  DNS: achme.com → Server LAN IP (dns-server.js, port 53)     │
+│       ↓                                                      │
+│  Browser → https://achme.com → Server LAN IP:443             │
+│       ↓                                                      │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Nginx (port 443, SSL)                               │    │
+│  │   /           → Vite Frontend (port 5173)           │    │
+│  │   /api/*      → Backend API (port 5000)             │    │
+│  │   /socket.io/* → WebSocket (port 5000)              │    │
+│  │   /uploads/*   → File uploads (port 5000)           │    │
+│  └──────────────────────┬──────────────────────────────┘    │
+│                         ↓                                    │
+│  ┌──────────────────┐  ┌──────────────────┐                 │
+│  │ Backend (PM2)    │  │ MySQL (port 3306)│                 │
+│  │ Port 5000        │  │ Database: achme  │                 │
+│  │ Node.js + Express│  │                  │                 │
+│  └──────────────────┘  └──────────────────┘                 │
+│                                                              │
+│  DNS Server (port 53)                                        │
+│    achme.com → LAN IP                                        │
+│    *.achme.com → LAN IP                                      │
+│    Other domains → 8.8.8.8 (Google DNS)                      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Quick Start (One Command)
-```
-Double-click: START.bat
-```
-That's it. Everything auto-checks, auto-installs, auto-starts.
+## Service Stack
+
+| Component | Port | Role |
+|-----------|------|------|
+| **Nginx** | 80/443 | Reverse proxy, SSL termination, routes to Frontend + Backend |
+| **Vite (Frontend)** | 5173 | React SPA development server |
+| **Node.js + Express (Backend)** | 5000 | REST API + WebSocket (managed by PM2) |
+| **MySQL** | 3306 | Database |
+| **DNS Server** | 53 | Resolves achme.com → LAN IP for employee devices |
+| **PM2** | - | Process manager, auto-restart on crash |
 
 ---
 
-## Manual Commands (Step by Step)
+## Employee Access Setup (DNS Method)
 
-### Step 1: Install Node.js (if not installed)
-Download from: https://nodejs.org/ (LTS version)
-Verify:
+### On Each Employee Device:
+
+1. Open Network Settings
+2. Set DNS Server to: **your server's LAN IP** (shown when START.bat runs)
+3. Open browser → `https://achme.com`
+4. Accept SSL certificate warning (first time only)
+5. Done - full access to Achme CRM
+
+### What Employees Can Access:
+
+| Feature | URL | Works? |
+|---------|-----|--------|
+| Frontend | `https://achme.com` | Yes |
+| Login | `https://achme.com/login` | Yes |
+| API | `https://achme.com/api/*` | Yes |
+| Real-time Chat | `https://achme.com` (WebSocket) | Yes |
+| File Uploads | `https://achme.com/uploads/*` | Yes |
+| Admin Panel | `https://achme.com/login` | Yes |
+
+---
+
+## Access URLs
+
+### On Server PC (no DNS needed):
+
+| URL | Description |
+|-----|-------------|
+| `https://achme.com` | Frontend (via Nginx) |
+| `http://localhost:5173` | Frontend (direct Vite) |
+| `http://localhost:5000/api/health` | Backend API health check |
+| `https://localhost` | Frontend (via Nginx HTTPS) |
+| `https://localhost/api/health` | Backend API (via Nginx HTTPS) |
+
+### On LAN (other devices):
+
+| URL | Description |
+|-----|-------------|
+| `https://achme.com` | Frontend (requires DNS set to server IP) |
+| `https://<SERVER_IP>` | Frontend (direct IP, SSL warning) |
+| `http://<SERVER_IP>:5173` | Frontend (direct Vite, no SSL) |
+| `http://<SERVER_IP>:5000/api/health` | Backend API (direct) |
+
+---
+
+## Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `Kk@achmecommunication.com` | `admin123` |
+
+---
+
+## Database
+
+| Setting | Value |
+|---------|-------|
+| Host | `127.0.0.1` |
+| Port | `3306` |
+| User | `root` |
+| Password | `admin@123` |
+| Database | `achme` |
+
+---
+
+## Manual Commands
+
+### Start Everything
 ```cmd
-node --version
-npm --version
+Double-click START.bat
 ```
 
-### Step 2: Install PM2 (Process Manager)
-```cmd
-npm install -g pm2
-```
-Verify:
-```cmd
-pm2 --version
-```
+### Start Individual Services
 
-### Step 3: Install Backend Dependencies
-```cmd
-cd E:\OBSIDIAN\simple-react-spark\backend
-set PUPPETEER_SKIP_DOWNLOAD=true
-npm install
-```
-
-### Step 4: Install Frontend Dependencies
-```cmd
-cd E:\OBSIDIAN\simple-react-spark\frontend
-npm install
-```
-
-### Step 5: Start MySQL
-MySQL runs as a Windows process. Check if running:
-```cmd
-tasklist /FI "IMAGENAME eq mysqld.exe"
-```
-If NOT running, start the service:
-```cmd
-net start MySQL80
-```
-Or if service name is different:
-```cmd
-net start MySQL
-```
-Verify MySQL is listening on port 3306:
-```cmd
-powershell -Command "Test-NetConnection 127.0.0.1 -Port 3306"
-```
-
-### Step 6: Start Backend (via PM2)
+**Backend (PM2):**
 ```cmd
 cd E:\OBSIDIAN\simple-react-spark
 pm2 start server-deployment\ecosystem.config.js --only achme-backend
 pm2 save
 ```
-Verify backend is running:
-```cmd
-pm2 list
-```
-Check backend logs:
-```cmd
-pm2 logs achme-backend
-```
-Test API health endpoint:
-```cmd
-curl http://localhost:5000/api/health
-```
 
-### Step 7: Start Frontend (Vite Dev Server)
+**Frontend (Vite):**
 ```cmd
 cd E:\OBSIDIAN\simple-react-spark\frontend
 npm run dev
 ```
-Frontend will be available at: `http://localhost:5173`
 
-### Step 8: Start DNS Server (optional, for achme.com domain)
+**Nginx:**
 ```cmd
-cd E:\OBSIDIAN\simple-react-spark\server-deployment
-node dns-server.js
-```
-DNS resolves `achme.com` to your PC's LAN IP on port 53 (requires Administrator).
-
----
-
-## All Services Running - Verify Everything
-
-### Check All Ports
-```cmd
-:: Check MySQL (3306)
-powershell -Command "Test-NetConnection 127.0.0.1 -Port 3306"
-
-:: Check Backend API (5000)
-powershell -Command "Test-NetConnection 127.0.0.1 -Port 5000"
-
-:: Check Frontend (5173)
-powershell -Command "Test-NetConnection 127.0.0.1 -Port 5173"
+cd E:\OBSIDIAN\simple-react-spark\nginx
+nginx.exe -c E:\OBSIDIAN\simple-react-spark\server-deployment\nginx.conf
 ```
 
-### Test API Endpoints
+**DNS Server:**
 ```cmd
-:: Health check
-curl http://localhost:5000/api/health
-
-:: Test auth endpoint
-curl http://localhost:5000/api/auth/login -X POST -H "Content-Type: application/json" -d "{\"email\":\"Kk@achmecommunication.com\",\"password\":\"admin123\"}"
-
-:: Test client list (requires auth token)
-curl http://localhost:5000/api/client -H "Authorization: Bearer YOUR_TOKEN"
+node E:\OBSIDIAN\simple-react-spark\server-deployment\dns-server.js
 ```
 
-### Test Database Connection
+**MySQL:**
 ```cmd
-cd E:\OBSIDIAN\simple-react-spark\backend
-node -e "const db = require('./config/database'); db.connect((err) => { if (err) console.log('FAIL:', err.message); else console.log('OK: MySQL connected'); process.exit(0); });"
+net start MySQL80
 ```
 
-### Check PM2 Process
+### Stop Individual Services
+
+**Backend:**
+```cmd
+pm2 stop achme-backend
+```
+
+**Nginx:**
+```cmd
+cd E:\OBSIDIAN\simple-react-spark\nginx
+nginx.exe -s quit
+```
+
+**Frontend:**
+```cmd
+taskkill /FI "WINDOWTITLE eq Achme Frontend*" /F
+```
+
+**DNS Server:**
+```cmd
+taskkill /F /IM node.exe
+```
+
+### Check Status
+
 ```cmd
 pm2 list
 pm2 logs achme-backend
 pm2 monit
+
+netstat -ano | findstr :5000
+netstat -ano | findstr :5173
+netstat -ano | findstr :443
+netstat -ano | findstr :3306
 ```
 
-### Restart Backend
+### Test API
+
 ```cmd
-pm2 restart achme-backend
+curl http://localhost:5000/api/health
+curl https://localhost/api/health -k
+curl https://achme.com/api/health -k
 ```
 
-### Stop Backend
+### Test Database
+
 ```cmd
-pm2 stop achme-backend
-pm2 delete achme-backend
+cd E:\OBSIDIAN\simple-react-spark\backend
+node -e "const db = require('./config/database'); db.connect((err) => { console.log(err ? 'FAIL: ' + err.message : 'OK: MySQL connected'); });"
 ```
-
----
-
-## Service Ports Summary
-
-| Service | Port | URL | How to Start |
-|---------|------|-----|--------------|
-| MySQL | 3306 | `127.0.0.1:3306` | `net start MySQL80` |
-| Backend API | 5000 | `http://localhost:5000` | `pm2 start server-deployment\ecosystem.config.js` |
-| Frontend | 5173 | `http://localhost:5173` | `cd frontend && npm run dev` |
-| DNS Server | 53 | `achme.com` → LAN IP | `node server-deployment\dns-server.js` |
 
 ---
 
@@ -185,32 +235,19 @@ pm2 delete achme-backend
 | GET | `/api/payments` | Payment records |
 | POST | `/api/payments` | Create payment |
 | GET | `/api/estimate` | Estimates |
-| GET | `/api/Fields` | Form fields |
 | GET | `/api/contract` | Contracts |
 | GET | `/api/amc` | AMC records |
 | GET | `/api/reports` | Reports |
 | GET | `/api/notifications` | Notifications |
+| GET | `/api/Fields` | Form fields |
+| GET | `/api/estimate-client` | Estimate clients |
+| GET | `/api/service` | Service estimation |
+| GET | `/api/unified-invoice` | Unified invoice |
+| GET | `/api/performa` | Performa invoice |
+| GET | `/api/targets` | Targets |
+| GET | `/api/lead-management` | Lead management |
+| GET | `/api/call-reports` | Call reports |
 | WebSocket | `/socket.io/` | Real-time chat & notifications |
-
----
-
-## Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `Kk@achmecommunication.com` | `admin123` |
-
----
-
-## Database
-
-| Setting | Value |
-|---------|-------|
-| Host | `127.0.0.1` |
-| Port | `3306` |
-| User | `root` |
-| Password | `admin@123` |
-| Database | `achme` |
 
 ---
 
@@ -218,19 +255,18 @@ pm2 delete achme-backend
 
 | Service | Log Location |
 |---------|-------------|
-| Backend | `E:\OBSIDIAN\simple-react-spark\logs\backend-out.log` |
-| Backend Errors | `E:\OBSIDIAN\simple-react-spark\logs\backend-error.log` |
-| Frontend | `E:\OBSIDIAN\simple-react-spark\logs\frontend.log` |
-| DNS Server | `E:\OBSIDIAN\simple-react-spark\logs\dns-server.log` |
+| Backend Output | `logs\backend-out.log` |
+| Backend Errors | `logs\backend-error.log` |
+| Frontend | `logs\frontend.log` |
+| DNS Server | `logs\dns-server.log` |
+| Nginx Access | `logs\nginx-access.log` |
+| Nginx Errors | `logs\nginx-error.log` |
 
-View logs:
+View live logs:
 ```cmd
-:: Backend logs
 pm2 logs achme-backend
-
-:: Raw log files
-type E:\OBSIDIAN\simple-react-spark\logs\backend-out.log
-type E:\OBSIDIAN\simple-react-spark\logs\frontend.log
+type logs\backend-out.log
+type logs\nginx-error.log
 ```
 
 ---
@@ -239,87 +275,138 @@ type E:\OBSIDIAN\simple-react-spark\logs\frontend.log
 
 ```
 E:\OBSIDIAN\simple-react-spark\
-├── START.bat                    ← ONE CLICK: Starts everything
-├── final.md                     ← This file (manual commands)
+├── START.bat                          ← ONE CLICK: Starts everything
+├── final.md                           ← This guide
 │
 ├── backend/
-│   ├── server.js                ← Main backend entry
-│   ├── config/database.js       ← MySQL connection
-│   ├── routes/                  ← All API routes
-│   ├── sockets/                 ← WebSocket handlers
-│   ├── backendutil/             ← Utility functions
-│   ├── migrations/              ← Database migrations
-│   └── package.json             ← Backend dependencies
+│   ├── server.js                      ← Main backend entry
+│   ├── config/database.js             ← MySQL connection
+│   ├── routes/                        ← All API routes
+│   ├── sockets/                       ← WebSocket handlers
+│   ├── backendutil/                   ← Utility functions
+│   ├── migrations/                    ← Database migrations
+│   └── package.json                   ← Backend dependencies
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx              ← Main React app
-│   │   ├── pages/               ← All page components
-│   │   ├── components/          ← Reusable components
-│   │   ├── api/                 ← API client
-│   │   └── auth/                ← Login/Register
-│   └── package.json             ← Frontend dependencies
+│   │   ├── App.jsx                    ← Main React app
+│   │   ├── pages/                     ← All page components
+│   │   ├── components/                ← Reusable components
+│   │   ├── api/                       ← API client
+│   │   └── auth/                      ← Login/Register
+│   └── package.json                   ← Frontend dependencies
 │
 ├── server-deployment/
-│   ├── ecosystem.config.js      ← PM2 configuration
-│   ├── dns-server.js            ← Local DNS server
-│   └── nginx.conf               ← Nginx config (for later)
+│   ├── ecosystem.config.js            ← PM2 configuration
+│   ├── dns-server.js                  ← Local DNS server
+│   ├── nginx.conf                     ← Nginx reverse proxy config
+│   ├── install-nginx.ps1              ← Auto-download Nginx
+│   ├── setup-hosts.ps1                ← Configure hosts file
+│   ├── setup-firewall.ps1             ← Open firewall ports
+│   └── generate-certs.ps1             ← Generate SSL certificates
 │
-└── logs/                        ← All service logs
+├── nginx/                             ← Nginx installation (auto-created)
+│   └── nginx.exe
+│
+├── ssl/                               ← SSL certificates (auto-created)
+│   ├── achme.crt                      ← Domain certificate
+│   ├── achme.key                      ← Private key
+│   └── AchmeRootCA.crt                ← Root CA certificate
+│
+└── logs/                              ← All service logs (auto-created)
 ```
 
 ---
 
 ## Troubleshooting
 
-### Backend won't start
-```cmd
-pm2 logs achme-backend
-```
-Common issues:
-- MySQL not running → `net start MySQL80`
-- Missing dependencies → `cd backend && npm install`
-- Port 5000 in use → kill process on port 5000
-
-### Frontend won't start
-```cmd
-cd E:\OBSIDIAN\simple-react-spark\frontend
-npm install
-npm run dev
-```
-Common issues:
-- Port 5173 in use → kill process on port 5173
-- Missing dependencies → `npm install`
-
-### MySQL not running
-```cmd
-:: Check if running
-tasklist /FI "IMAGENAME eq mysqld.exe"
-
-:: Start service
-net start MySQL80
-
-:: If service doesn't exist, find MySQL in Services
-:: Press Win+R, type "services.msc", find MySQL, click Start
-```
-
-### API returns errors
-```cmd
-:: Test health endpoint
-curl http://localhost:5000/api/health
-
-:: Check database connection
-cd E:\OBSIDIAN\simple-react-spark\backend
-node -e "const db = require('./config/database'); db.connect((err) => { console.log(err ? 'FAIL: ' + err.message : 'OK'); });"
-```
+### Server won't start
+1. Run `START.bat` as Administrator
+2. Check logs: `logs\backend-error.log`, `logs\nginx-error.log`
+3. Verify MySQL: `services.msc` → find MySQL → Start
 
 ### Port conflicts
 ```cmd
 :: Find what's using a port
 netstat -ano | findstr :5000
 netstat -ano | findstr :5173
-netstat -ano | findstr :3306
+netstat -ano | findstr :443
 
 :: Kill process by PID
 taskkill /F /PID <PID>
 ```
+
+### Nginx won't start
+1. Check logs: `logs\nginx-error.log`
+2. Verify SSL certs exist: `ssl\achme.crt` and `ssl\achme.key`
+3. Test config: `cd nginx && nginx.exe -t -c ..\server-deployment\nginx.conf`
+4. Reload: `cd nginx && nginx.exe -s reload`
+
+### SSL certificate warning on employee devices
+- This is normal for self-signed certificates
+- Click "Advanced" → "Proceed to achme.com (unsafe)"
+- Only happens once per device/browser
+
+### Can't access from LAN
+1. Verify firewall: `START.bat` opens ports automatically
+2. Check Windows Firewall settings
+3. Verify employee device DNS is set to server IP
+4. Test direct IP: `https://<SERVER_IP>`
+
+### Backend API not responding
+```cmd
+pm2 logs achme-backend
+pm2 restart achme-backend
+pm2 list
+```
+
+### MySQL not connecting
+```cmd
+net start MySQL80
+tasklist /FI "IMAGENAME eq mysqld.exe"
+```
+
+### DNS not resolving achme.com
+```cmd
+:: On server PC
+ipconfig /flushdns
+ping achme.com
+
+:: On employee device
+nslookup achme.com <SERVER_IP>
+```
+
+---
+
+## How START.bat Works
+
+1. **Admin Check** - Auto-restarts as Administrator if not already
+2. **LAN IP Detection** - Finds your PC's active LAN IP
+3. **Node.js Check** - Verifies Node.js is installed
+4. **PM2 Install** - Auto-installs PM2 if missing
+5. **Nginx Install** - Auto-downloads Nginx for Windows if missing
+6. **Backend Deps** - Installs `npm` packages for backend
+7. **Frontend Deps** - Installs `npm` packages for frontend
+8. **MySQL Check** - Verifies/starts MySQL service
+9. **Hosts File** - Adds `127.0.0.1 achme.com` to hosts file
+10. **Firewall** - Opens ports 80, 443, 53, 5000, 5173
+11. **SSL Certs** - Generates self-signed certificates for achme.com
+12. **CORS Update** - Updates backend CORS with detected LAN IP
+13. **Kill Stale** - Stops any existing processes on used ports
+14. **Start Backend** - Launches via PM2 on port 5000
+15. **Start DNS** - Launches DNS server on port 53
+16. **Start Nginx** - Launches reverse proxy on ports 80/443
+17. **Start Frontend** - Launches Vite dev server on port 5173
+18. **Verify** - Tests all connections (API, MySQL, Nginx, DNS)
+19. **Dashboard** - Shows status, URLs, credentials, commands
+20. **Live Logs** - Streams all log files in real-time
+
+---
+
+## Security Notes
+
+- **Self-signed SSL** - Employees see a warning once, then it's trusted per session
+- **No port forwarding** - Router stays secure, all traffic stays on LAN
+- **Firewall rules** - Only required ports are opened
+- **Private CA** - Root CA is installed locally for certificate trust
+- **PM2 auto-restart** - Backend recovers automatically from crashes
