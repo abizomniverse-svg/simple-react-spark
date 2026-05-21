@@ -13,7 +13,7 @@ echo        =========================================
 echo.
 echo  ================================================================
 echo.
-echo   Showing all logs in real-time.
+echo   Showing all logs in 4 tabs: Frontend | Backend | PM2 | Nginx
 echo   Services run in background - closing this window does NOT stop them.
 echo.
 echo   Press Ctrl+C to stop viewing logs.
@@ -21,4 +21,4 @@ echo.
 echo  ================================================================
 echo.
 
-powershell -Command "Write-Host 'Reading recent logs...' -ForegroundColor Yellow; Write-Host ''; $files = @('%LOG_DIR%\backend-out.log', '%LOG_DIR%\backend-error.log', '%LOG_DIR%\frontend.log', '%LOG_DIR%\dns-server.log', '%LOG_DIR%\nginx-error.log', '%LOG_DIR%\nginx-access.log'); foreach ($f in $files) { if (Test-Path $f) { Write-Host ('=== [' + (Split-Path $f -Leaf) + '] Last 5 lines ===') -ForegroundColor Cyan; Get-Content $f -Tail 5 -ErrorAction SilentlyContinue; Write-Host '' } else { Write-Host ('=== [' + (Split-Path $f -Leaf) + '] No log yet ===') -ForegroundColor DarkGray; Write-Host '' } }; Write-Host '=== STREAMING ALL LOGS (Ctrl+C to exit) ===' -ForegroundColor Green; Write-Host ''; Get-Content '%LOG_DIR%\backend-out.log', '%LOG_DIR%\backend-error.log', '%LOG_DIR%\frontend.log', '%LOG_DIR%\dns-server.log', '%LOG_DIR%\nginx-error.log', '%LOG_DIR%\nginx-access.log' -Wait -ErrorAction SilentlyContinue 2>$null"
+powershell -Command "$ErrorActionPreference='SilentlyContinue'; Write-Host ''; Write-Host '=== RECENT LOGS ===' -ForegroundColor Yellow; Write-Host ''; $tabs = @(@('FRONTEND', '%LOG_DIR%\frontend.log'), @('BACKEND', '%LOG_DIR%\backend-out.log'), @('PM2 ERROR', '%LOG_DIR%\backend-error.log'), @('NGINX', '%LOG_DIR%\nginx-error.log'), @('DNS', '%LOG_DIR%\dns-server.log'), @('NGINX ACCESS', '%LOG_DIR%\nginx-access.log')); foreach ($tab in $tabs) { $name = $tab[0]; $file = $tab[1]; Write-Host ('--- [' + $name + '] Last 3 lines ---') -ForegroundColor Cyan; if (Test-Path $file) { Get-Content $file -Tail 3 } else { Write-Host '  (no log yet)' -ForegroundColor DarkGray }; Write-Host '' }; Write-Host '=== STREAMING ALL LOGS (Ctrl+C to exit) ===' -ForegroundColor Green; Write-Host ''; $files = @(); foreach ($tab in $tabs) { if (Test-Path $tab[1]) { $files += $tab[1] } }; if ($files.Count -gt 0) { Get-Content $files -Wait } else { Write-Host 'No log files found yet. Services may not have started.' -ForegroundColor Red }"

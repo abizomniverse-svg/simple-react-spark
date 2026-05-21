@@ -3,6 +3,16 @@ const router = express.Router();
 const db = require("../config/database");
 const { verifyToken, isAdmin } = require("../middleware/authMiddleware");
 
+// GET ALL INVOICES
+router.get("/", verifyToken, (req, res) => {
+  const { id: user_id, role } = req.user;
+  const sql = `SELECT * FROM clientinvoices ${role === 'employee' ? 'WHERE created_by = ?' : ''} ORDER BY id DESC`;
+  db.query(sql, role === 'employee' ? [user_id] : [], (err, results) => {
+    if (err) { console.error(err); return res.status(500).json({ message: "Fetch failed" }); }
+    res.json(results);
+  });
+});
+
 // CREATE INVOICE
 router.post("/new", verifyToken, (req, res) => {
   const { client_company, project_names, invoice_date, invoice_duedate, category } = req.body;

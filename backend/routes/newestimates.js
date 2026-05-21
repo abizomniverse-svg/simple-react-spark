@@ -2,6 +2,14 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/database");
 
+// GET ALL ESTIMATE CLIENTS
+router.get("/", (req, res) => {
+  db.query("SELECT * FROM estimatenew ORDER BY id DESC", (err, rows) => {
+    if (err) return res.status(500).json(err);
+    res.json(rows);
+  });
+});
+
 router.post("/new", (req, res) => {
   const { company_name, client_firstname, client_lastname, client_email } = req.body;
 

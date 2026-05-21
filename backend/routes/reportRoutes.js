@@ -3,6 +3,22 @@ const router = express.Router();
 const db = require("../config/database");
 const { verifyToken } = require("../middleware/authMiddleware");
 
+// GET ALL REPORTS SUMMARY
+router.get("/", verifyToken, async (req, res) => {
+  try {
+    const [telecalls, walkins, clients, invoices, quotations] = await Promise.all([
+      new Promise((resolve) => db.query("SELECT COUNT(*) as count FROM telecalls", (e, r) => resolve(e ? 0 : r[0].count))),
+      new Promise((resolve) => db.query("SELECT COUNT(*) as count FROM walkins", (e, r) => resolve(e ? 0 : r[0].count))),
+      new Promise((resolve) => db.query("SELECT COUNT(*) as count FROM clients", (e, r) => resolve(e ? 0 : r[0].count))),
+      new Promise((resolve) => db.query("SELECT COUNT(*) as count FROM clientinvoices", (e, r) => resolve(e ? 0 : r[0].count))),
+      new Promise((resolve) => db.query("SELECT COUNT(*) as count FROM quotations", (e, r) => resolve(e ? 0 : r[0].count))),
+    ]);
+    res.json({ telecalls, walkins, clients, invoices, quotations });
+  } catch (err) {
+    res.status(500).json({ message: "Reports fetch failed", error: err.message });
+  }
+});
+
 // Helper to handle date ranges
 const getDateRange = (filter, from, to) => {
   let startDate, endDate;

@@ -3,6 +3,14 @@ const router = express.Router();
 const db = require("../config/database");
 const { verifyToken, isAdmin } = require("../middleware/authMiddleware");
 
+/* GET ALL AMC RECORDS */
+router.get("/", verifyToken, (req, res) => {
+  db.query("SELECT * FROM amc_alc_services ORDER BY id DESC", (err, results) => {
+    if (err) { console.error(err); return res.status(500).json({ message: "Fetch failed" }); }
+    res.json(results);
+  });
+});
+
 /* ================= AMC/ALC SERVICE MANAGEMENT ================= */
 
 /* CREATE AMC/ALC SERVICE */

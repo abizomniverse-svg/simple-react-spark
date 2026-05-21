@@ -10,6 +10,15 @@ const toTimeOnly = (val) => {
   if (s.length >= 8) return s.slice(-8);
   return s;
 };
+
+// GET ALL LEADS SUMMARY
+router.get("/", verifyToken, (req, res) => {
+  db.query("SELECT id, lead_type, customer_name, phone_number, lead_date, status FROM leads ORDER BY id DESC LIMIT 100", (err, results) => {
+    if (err) { console.error(err); return res.status(500).json({ message: "Fetch failed" }); }
+    res.json(results);
+  });
+});
+
 // DISABLED: Old notification system - replaced with 3-type redesign
 /*
 const notifyMissedLead = (lead, req) => {
