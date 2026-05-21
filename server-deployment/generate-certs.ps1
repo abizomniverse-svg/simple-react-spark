@@ -1,6 +1,6 @@
 # generate-certs.ps1
 # Generate self-signed SSL certificates for achme.com
-# Must be run as Administrator
+# Works with or without Administrator privileges
 
 $ErrorActionPreference = "Stop"
 
@@ -10,20 +10,34 @@ $SslDir = Join-Path $ProjectRoot "ssl"
 $CaSubject = "CN=Achme Private Root CA, O=Achme Corporation, C=US"
 $CertSubject = "CN=achme.com"
 
+$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
 $ActiveLanIp = "127.0.0.1"
 try {
     $ActiveLanIp = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Wi-Fi','Ethernet' -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
 } catch {}
+if (-not $ActiveLanIp) {
+    try {
+        $ActiveLanIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
+    } catch {}
+}
 if (-not $ActiveLanIp) { $ActiveLanIp = "127.0.0.1" }
 
 Write-Output "[INFO] Detected LAN IP: $ActiveLanIp"
+Write-Output "[INFO] Admin: $IsAdmin"
 Write-Output "[INFO] Generating SSL certificates..."
 
 if (-not (Test-Path $SslDir)) {
     New-Item -ItemType Directory -Path $SslDir -Force | Out-Null
 }
 
-$StoreLocation = "LocalMachine"
+if ($IsAdmin) {
+    $StoreLocation = "LocalMachine"
+    Write-Output "[INFO] Using LocalMachine certificate store"
+} else {
+    $StoreLocation = "CurrentUser"
+    Write-Output "[INFO] Using CurrentUser certificate store (no admin)"
+}
 $StorePath = "Cert:\$StoreLocation\My"
 
 $CaCert = Get-ChildItem -Path $StorePath | Where-Object { $_.Subject -eq $CaSubject } | Select-Object -First 1
@@ -36,24 +50,29 @@ if (-not $CaCert) {
         -CertStoreLocation $StorePath `
         -KeyUsage CertSign, CRLSign, DigitalSignature `
         -NotAfter (Get-Date).AddYears(10)
-    Write-Output "[OK] Root CA created"
+    Write-Output "[OK] Root CA created in $StoreLocation store"
 } else {
-    Write-Output "[OK] Root CA already exists"
+    Write-Output "[OK] Root CA already exists in $StoreLocation store"
 }
 
-$RootStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", $StoreLocation)
-$RootStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-$IsInstalled = $false
-foreach ($Cert in $RootStore.Certificates) {
-    if ($Cert.Thumbprint -eq $CaCert.Thumbprint) { $IsInstalled = $true; break }
-}
-if (-not $IsInstalled) {
-    $RootStore.Add($CaCert)
-    Write-Output "[OK] Root CA installed in Trusted Root store"
+if ($IsAdmin) {
+    $RootStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", $StoreLocation)
+    $RootStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+    $IsInstalled = $false
+    foreach ($Cert in $RootStore.Certificates) {
+        if ($Cert.Thumbprint -eq $CaCert.Thumbprint) { $IsInstalled = $true; break }
+    }
+    if (-not $IsInstalled) {
+        $RootStore.Add($CaCert)
+        Write-Output "[OK] Root CA installed in Trusted Root store"
+    } else {
+        Write-Output "[OK] Root CA already in Trusted Root store"
+    }
+    $RootStore.Close()
 } else {
-    Write-Output "[OK] Root CA already in Trusted Root store"
+    Write-Output "[INFO] Skipping Trusted Root install (requires admin)"
+    Write-Output "[INFO] To trust this cert: double-click ssl\AchmeRootCA.crt -> Install Certificate -> Trusted Root"
 }
-$RootStore.Close()
 
 $CaCertPath = Join-Path $SslDir "AchmeRootCA.crt"
 $CaCertPem = "-----BEGIN CERTIFICATE-----`r`n" + [System.Convert]::ToBase64String($CaCert.RawData, [System.Base64FormattingOptions]::InsertLineBreaks) + "`r`n-----END CERTIFICATE-----"
@@ -81,6 +100,7 @@ $SecurePassword = ConvertTo-SecureString -String $PfxPassword -Force -AsPlainTex
 Export-PfxCertificate -Cert $DomainCert -FilePath $PfxPath -Password $SecurePassword -Force | Out-Null
 
 $KeyPath = Join-Path $SslDir "achme.key"
+
 $OpenSslPath = ""
 $SearchPaths = @(
     "openssl.exe",
@@ -101,32 +121,28 @@ if ($OpenSslPath) {
     $Command = "& `"$OpenSslPath`" pkcs12 -in `"$PfxPath`" -nocerts -nodes -out `"$KeyPath`" -password pass:`"$PfxPassword`""
     Invoke-Expression $Command | Out-Null
     if (Test-Path $KeyPath) {
-        Write-Output "[OK] Private key extracted: $KeyPath"
-        Remove-Item -Path $PfxPath -Force
-    } else {
-        Write-Output "[WARN] OpenSSL extraction failed. Falling back to PowerShell export..."
+        Write-Output "[OK] Private key extracted via OpenSSL: $KeyPath"
+        Remove-Item -Path $PfxPath -Force -ErrorAction SilentlyContinue
     }
 }
 
 if (-not (Test-Path $KeyPath)) {
     Write-Output "[INFO] Using PowerShell to export private key (no OpenSSL needed)..."
     try {
-        $certBytes = $DomainCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pkcs12, $PfxPassword)
-        [System.IO.File]::WriteAllBytes($PfxPath, $certBytes)
-
         $pfx = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
         $pfx.Import($PfxPath, $PfxPassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
-        $privateKey = $pfx.PrivateKey
-        $keyBytes = $privateKey.ExportRSAPrivateKey()
+        $rsa = [System.Security.Cryptography.RSACertificateExtensions]::GetRSAPrivateKey($pfx)
+        $keyBytes = $rsa.ExportRSAPrivateKey()
         $keyPem = "-----BEGIN RSA PRIVATE KEY-----`r`n" + [System.Convert]::ToBase64String($keyBytes, [System.Base64FormattingOptions]::InsertLineBreaks) + "`r`n-----END RSA PRIVATE KEY-----"
         $keyPem | Out-File -FilePath $KeyPath -Encoding ascii -Force
         Write-Output "[OK] Private key exported via PowerShell: $KeyPath"
         Remove-Item -Path $PfxPath -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Output "[WARN] Could not export private key: $_"
-        Write-Output "[INFO] PFX saved at: $PfxPath - use OpenSSL to extract .key manually"
+        Write-Output "[INFO] PFX saved at: $PfxPath"
     }
 }
 
 Write-Output "[OK] SSL certificates generated successfully!"
 Write-Output "[INFO] LAN IP $ActiveLanIp included in certificate"
+Write-Output "[INFO] Files: $SslDir\achme.crt, $SslDir\achme.key"

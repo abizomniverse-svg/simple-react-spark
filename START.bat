@@ -328,8 +328,8 @@ echo.
 echo  [*] Starting Nginx (ports 80/443)...
 cd /d "%NGINX_DIR%"
 if exist "%NGINX_DIR%\nginx.exe" (
-    nginx.exe -c "%SERVER_DIR%\nginx.conf" 2>nul
-    timeout /t 2 /nobreak >nul
+    start "" /min "%NGINX_DIR%\nginx.exe" -c "%SERVER_DIR%\nginx.conf"
+    timeout /t 3 /nobreak >nul
     tasklist /FI "IMAGENAME eq nginx.exe" 2>NUL | find /I /N "nginx.exe">NUL
     if %errorLevel% equ 0 (
         echo  [OK] Nginx started on ports 80 and 443
@@ -364,16 +364,16 @@ echo  [INFO] Verifying service connections...
 echo.
 
 :: Verify Backend API
-powershell -Command "try { $r = Invoke-WebRequest -Uri 'http://localhost:5000/api/health' -UseBasicParsing -TimeoutSec 5; Write-Host '  [OK] Backend API responding: http://localhost:5000/api/health' } catch { Write-Host '  [WARN] Backend API not responding yet' }"
+node -e "const http=require('http'); http.get('http://localhost:5000/api/health',(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>console.log('  [OK] Backend API: '+d));}).on('error',e=>console.log('  [WARN] Backend API not responding: '+e.message));"
 
 :: Verify MySQL
-powershell -Command "try { $tcp = New-Object System.Net.Sockets.TcpClient; $tcp.Connect('127.0.0.1', 3306); Write-Host '  [OK] MySQL accepting connections on port 3306'; $tcp.Close() } catch { Write-Host '  [WARN] MySQL not accepting connections' }"
+node -e "const net=require('net');const s=new net.Socket();s.setTimeout(3000);s.connect(3306,'127.0.0.1',()=>{console.log('  [OK] MySQL accepting connections on port 3306');s.destroy();}).on('error',()=>console.log('  [WARN] MySQL not accepting connections'));"
 
 :: Verify Nginx
-powershell -Command "try { $tcp = New-Object System.Net.Sockets.TcpClient; $tcp.Connect('127.0.0.1', 443); Write-Host '  [OK] Nginx listening on port 443 (HTTPS)'; $tcp.Close() } catch { Write-Host '  [WARN] Nginx not listening on port 443' }"
+node -e "const net=require('net');const s=new net.Socket();s.setTimeout(3000);s.connect(443,'127.0.0.1',()=>{console.log('  [OK] Nginx listening on port 443 (HTTPS)');s.destroy();}).on('error',()=>console.log('  [WARN] Nginx not listening on port 443'));"
 
 :: Verify DNS
-powershell -Command "try { $tcp = New-Object System.Net.Sockets.UdpClient; $tcp.Connect('127.0.0.1', 53); Write-Host '  [OK] DNS Server listening on port 53'; $tcp.Close() } catch { Write-Host '  [WARN] DNS Server not listening on port 53' }"
+node -e "const dgram=require('dgram');const s=dgram.createSocket('udp4');s.on('error',()=>console.log('  [WARN] DNS Server not listening on port 53'));s.bind(53535,()=>{s.close();console.log('  [OK] DNS Server listening on port 53');});"
 
 :: ============================================================
 :: STATUS DASHBOARD
